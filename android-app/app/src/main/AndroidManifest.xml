@@ -1,6 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Android 11+ (API 30+) esconde otras apps por defecto (package visibility).
+         Sin esto, bindService() al servicio de impresión de Sunmi falla en
+         silencio ("no se pudo conectar con el servicio de impresión") aunque
+         el servicio exista y esté corriendo. -->
+    <queries>
+        <package android:name="woyou.aidlservice.jiuiv5" />
+        <intent>
+            <action android:name="woyou.aidlservice.jiuiv5.IWoyouService" />
+        </intent>
+    </queries>
+
     <application
         android:label="Sunmi Print Bridge"
         android:allowBackup="false"
