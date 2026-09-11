@@ -1,0 +1,331 @@
+<title>Sunmi Print Bridge</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#faf6ec;
+    --paper-edge:#e9e2d0;
+    --ink:#2a241c;
+    --ink-soft:#5b5346;
+    --accent:#c8102e;
+    --accent-ink:#fff5f0;
+    --line:#d8cfba;
+    --ground:#f3efe4;
+    --panel:#ffffff;
+    --panel-border:#e3ddcc;
+    --ok:#2f7d4f;
+    --err:#c8102e;
+    --shadow: 0 1px 2px rgba(40,30,10,.06), 0 8px 24px -12px rgba(40,30,10,.18);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#171310;
+      --panel:#211c17;
+      --panel-border:#3a3128;
+      --ink:#eee6d6;
+      --ink-soft:#b6a98f;
+      --accent:#ff5468;
+      --accent-ink:#2a0a0e;
+      --paper:#f4efe2;
+      --paper-edge:#ddd3ba;
+      --line:#cdc2a4;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 28px -14px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#171310;
+    --panel:#211c17;
+    --panel-border:#3a3128;
+    --ink:#eee6d6;
+    --ink-soft:#b6a98f;
+    --accent:#ff5468;
+    --accent-ink:#2a0a0e;
+    --paper:#f4efe2;
+    --paper-edge:#ddd3ba;
+    --line:#cdc2a4;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 28px -14px rgba(0,0,0,.7);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    padding-inline:20px; padding-block:28px 48px;
+  }
+  .wrap{ max-width:920px; margin-inline:auto; }
+
+  header{ margin-bottom:28px; }
+  .eyebrow{
+    font-size:12px; font-weight:600; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--accent); margin:0 0 6px;
+  }
+  h1{ font-size:26px; line-height:1.2; margin:0 0 8px; text-wrap:balance; letter-spacing:-.01em; }
+  .lede{ margin:0; color:var(--ink-soft); font-size:14.5px; line-height:1.55; max-width:62ch; }
+  code{ font-family:"IBM Plex Mono", ui-monospace, monospace; background:var(--panel-border); padding:.1em .4em; border-radius:4px; font-size:.92em; }
+
+  main{ display:grid; grid-template-columns: 1fr; gap:28px; }
+  @media (min-width: 760px){
+    main{ grid-template-columns: 1.15fr .85fr; align-items:start; }
+  }
+
+  .panel{
+    background:var(--panel); border:1px solid var(--panel-border); border-radius:14px;
+    padding:20px 22px; box-shadow:var(--shadow);
+  }
+  .panel + .panel{ margin-top:20px; }
+  .panel h2{ font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft); margin:0 0 16px; font-weight:600; }
+
+  .test-list{ display:flex; flex-direction:column; gap:10px; }
+  .test-btn{
+    display:flex; align-items:center; gap:12px; width:100%;
+    background:var(--ground); border:1px solid var(--panel-border); border-radius:10px;
+    padding:13px 14px; cursor:pointer; text-align:left; color:var(--ink);
+    font-family:inherit; font-size:14.5px; font-weight:500;
+    transition:border-color .15s ease, transform .1s ease;
+  }
+  .test-btn:hover{ border-color:var(--accent); }
+  .test-btn:active{ transform:scale(.997); }
+  .test-btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .test-btn .num{
+    flex:none; width:26px; height:26px; border-radius:7px; background:var(--accent); color:var(--accent-ink);
+    display:flex; align-items:center; justify-content:center; font-family:"IBM Plex Mono",monospace;
+    font-size:12.5px; font-weight:600;
+  }
+  .test-btn .meta{ flex:1; min-width:0; }
+  .test-btn .title{ display:block; }
+  .test-btn .sub{ display:block; font-size:12.5px; color:var(--ink-soft); margin-top:1px; font-weight:400; }
+  .test-btn .arrow{ flex:none; color:var(--ink-soft); font-size:13px; }
+
+  .status{
+    margin-top:16px; padding:12px 14px; border-radius:10px; font-size:13.5px;
+    background:var(--ground); border:1px solid var(--panel-border); color:var(--ink-soft);
+    font-family:"IBM Plex Mono", monospace; line-height:1.6; min-height:1.6em;
+  }
+  .status[data-state="ok"]{ color:var(--ok); border-color:color-mix(in srgb, var(--ok) 40%, var(--panel-border)); }
+  .status[data-state="err"]{ color:var(--err); border-color:color-mix(in srgb, var(--err) 40%, var(--panel-border)); }
+
+  .steps{ margin:0; padding-left:0; list-style:none; display:flex; flex-direction:column; gap:10px; font-size:13.5px; color:var(--ink-soft); line-height:1.5; }
+  .steps li{ display:flex; gap:10px; }
+  .steps .n{ flex:none; font-family:"IBM Plex Mono",monospace; font-weight:600; color:var(--accent); }
+
+  /* --- receipt preview --- */
+  .receipt-holder{ display:flex; flex-direction:column; align-items:center; }
+  .receipt{
+    width:100%; max-width:280px; background:var(--paper); color:#211c14;
+    font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12.3px; line-height:1.55;
+    padding:18px 16px 22px; position:relative;
+    box-shadow: var(--shadow);
+    clip-path: polygon(
+      0% 0%, 100% 0%, 100% calc(100% - 8px),
+      95% 100%, 90% calc(100% - 8px), 85% 100%, 80% calc(100% - 8px),
+      75% 100%, 70% calc(100% - 8px), 65% 100%, 60% calc(100% - 8px),
+      55% 100%, 50% calc(100% - 8px), 45% 100%, 40% calc(100% - 8px),
+      35% 100%, 30% calc(100% - 8px), 25% 100%, 20% calc(100% - 8px),
+      15% 100%, 10% calc(100% - 8px), 5% 100%, 0% calc(100% - 8px)
+    );
+  }
+  .receipt .center{ text-align:center; }
+  .receipt .rule{ border:none; border-top:1px dashed #8f8570; margin:9px 0; }
+  .receipt .brand{ font-family:"IBM Plex Sans",sans-serif; font-weight:700; font-size:14px; letter-spacing:.02em; }
+  .receipt .muted{ color:#78715f; }
+  .receipt .cut-tag{
+    display:inline-flex; align-items:center; gap:5px; margin-top:8px; font-size:11px; color:#9a5a12;
+  }
+  .receipt-caption{ margin-top:12px; font-size:12px; color:var(--ink-soft); text-align:center; max-width:280px; }
+
+  footer{ margin-top:32px; font-size:12.5px; color:var(--ink-soft); text-align:center; }
+  footer a{ color:var(--accent); }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Granja Martínez · TPV</p>
+    <h1>Banco de pruebas — Sunmi Print Bridge</h1>
+    <p class="lede">
+      Cada botón dispara <code>window.location.href = "sunmiprint://print?data=…"</code> —
+      la app puente lo recibe, decodifica los bytes ESC/POS y los manda directo a la impresora
+      térmica integrada. Sin diálogo de impresión, sin PDF de por medio.
+    </p>
+  </header>
+
+  <main>
+    <div>
+      <div class="panel">
+        <h2>Pruebas</h2>
+        <div class="test-list">
+          <button class="test-btn" data-test="basic">
+            <span class="num">1</span>
+            <span class="meta">
+              <span class="title">Texto básico</span>
+              <span class="sub">Encabezado + una línea de producto — sin corte</span>
+            </span>
+            <span class="arrow">→</span>
+          </button>
+          <button class="test-btn" data-test="ticket">
+            <span class="num">2</span>
+            <span class="meta">
+              <span class="title">Ticket completo</span>
+              <span class="sub">Igual a lo que emitirá el TPV: cabecera, líneas, total</span>
+            </span>
+            <span class="arrow">→</span>
+          </button>
+          <button class="test-btn" data-test="cut">
+            <span class="num">3</span>
+            <span class="meta">
+              <span class="title">Con corte de papel</span>
+              <span class="sub">El V3 de mano normalmente no tiene cuchilla — si falla, es normal</span>
+            </span>
+            <span class="arrow">→</span>
+          </button>
+          <button class="test-btn" data-test="drawer">
+            <span class="num">4</span>
+            <span class="meta">
+              <span class="title">Abrir cajón portamonedas</span>
+              <span class="sub">Pulso ESC p — solo si hay cajón conectado</span>
+            </span>
+            <span class="arrow">→</span>
+          </button>
+        </div>
+        <div id="status" class="status">Esperando una prueba…</div>
+      </div>
+
+      <div class="panel">
+        <h2>Cómo leer el resultado</h2>
+        <ol class="steps">
+          <li><span class="n">1</span> Al tocar un botón, Chrome debería preguntar una vez si quiere abrir "Sunmi Print Bridge" — permite siempre.</li>
+          <li><span class="n">2</span> La app aparece medio segundo (pantalla transparente) y suelta un aviso: "Ticket enviado a la impresora" o el error exacto.</li>
+          <li><span class="n">3</span> Si no aparece ningún aviso ni pasa nada, revisa que el APK esté instalado y que el permiso de origen desconocido siga activo.</li>
+          <li><span class="n">4</span> Errores de "servicio no encontrado" → el terminal no tiene el servicio de impresión Sunmi corriendo (raro, pero pasa tras un reset de fábrica).</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="receipt-holder">
+      <div class="receipt" id="receipt">
+        <p class="center brand">GRANJA MARTÍNEZ</p>
+        <p class="center muted">Avda. Valle de Losa, s/n<br>Medina de Pomar</p>
+        <hr class="rule">
+        <p id="receipt-body">Esperando prueba…</p>
+        <hr class="rule">
+        <p class="center muted" id="receipt-foot">sunmi print bridge</p>
+      </div>
+      <p class="receipt-caption">Vista previa del texto — el color y el papel son solo referencia, el V3 imprime en blanco y negro térmico.</p>
+    </div>
+  </main>
+
+  <footer>
+    Puente open-source de ITC · <a href="https://github.com/odoovps/sunmi-print-bridge" target="_blank" rel="noopener">odoovps/sunmi-print-bridge</a>
+  </footer>
+</div>
+
+<script>
+  const ESC = 0x1B, GS = 0x1D;
+
+  function bytesFromText(str){
+    // El firmware ESC/POS de Sunmi espera CP-1252/latin1 para acentos.
+    const out = [];
+    for (const ch of str) {
+      const code = ch.codePointAt(0);
+      out.push(code < 256 ? code : 0x3F); // '?' si no mapea
+    }
+    return out;
+  }
+
+  function buildPayload(kind){
+    let b = [];
+    b.push(ESC, 0x40); // init
+
+    const line = (s, opts = {}) => {
+      if (opts.center) b.push(ESC, 0x61, 1);
+      if (opts.bold) b.push(ESC, 0x45, 1);
+      b.push(...bytesFromText(s), 0x0A);
+      if (opts.bold) b.push(ESC, 0x45, 0);
+      if (opts.center) b.push(ESC, 0x61, 0);
+    };
+
+    if (kind === 'basic') {
+      line('GRANJA MARTINEZ', { center: true, bold: true });
+      line('Prueba Sunmi Print Bridge', { center: true });
+      line('');
+      line('1 Huevos Carton L        2,20 EUR');
+      line('');
+      line('');
+    }
+
+    if (kind === 'ticket' || kind === 'cut') {
+      line('GRANJA MARTINEZ', { center: true, bold: true });
+      line('Avda. Valle de Losa, s/n', { center: true });
+      line('Medina de Pomar', { center: true });
+      line('--------------------------------');
+      line('Ruta 1                 11/09/2026');
+      line('--------------------------------');
+      line('1  Huevos Carton XL      2,40 EUR');
+      line('2  Lechuga Batavia       1,60 EUR');
+      line('1  Brocoli               1,10 EUR');
+      line('--------------------------------');
+      line('TOTAL                   5,10 EUR', { bold: true });
+      line('IVA 4% incluido');
+      line('');
+      line('Gracias por su compra', { center: true });
+      line('');
+      line('');
+      line('');
+      if (kind === 'cut') {
+        b.push(GS, 0x56, 0x01); // corte parcial
+      }
+    }
+
+    if (kind === 'drawer') {
+      line('Abriendo cajon...', { center: true });
+      b.push(ESC, 0x70, 0x00, 0x19, 0xFA); // pulso cajon
+    }
+
+    return b;
+  }
+
+  function toBase64Url(bytes){
+    let bin = '';
+    for (const byte of bytes) bin += String.fromCharCode(byte);
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_');
+  }
+
+  const previewText = {
+    basic: 'GRANJA MARTINEZ\nPrueba Sunmi Print Bridge\n\n1 Huevos Carton L      2,20 EUR',
+    ticket: 'Ruta 1              11/09/2026\n--------------------------------\n1 Huevos Carton XL     2,40 EUR\n2 Lechuga Batavia      1,60 EUR\n1 Brocoli              1,10 EUR\n--------------------------------\nTOTAL                  5,10 EUR',
+    cut: 'Ruta 1              11/09/2026\n--------------------------------\n1 Huevos Carton XL     2,40 EUR\n2 Lechuga Batavia      1,60 EUR\n1 Brocoli              1,10 EUR\n--------------------------------\nTOTAL                  5,10 EUR\n\n[ corte de papel ]',
+    drawer: 'Abriendo cajon...\n\n[ pulso ESC p — 25ms / 250ms ]',
+  };
+
+  const statusEl = document.getElementById('status');
+  const receiptBody = document.getElementById('receipt-body');
+  const receiptFoot = document.getElementById('receipt-foot');
+
+  document.querySelectorAll('.test-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const kind = btn.dataset.test;
+      const payload = buildPayload(kind);
+      const encoded = toBase64Url(payload);
+      const url = `sunmiprint://print?data=${encoded}`;
+
+      receiptBody.textContent = previewText[kind] || '';
+      receiptFoot.textContent = kind === 'cut' ? 'corte solicitado' : (kind === 'drawer' ? 'pulso enviado' : 'sunmi print bridge');
+
+      statusEl.dataset.state = '';
+      statusEl.textContent = `Enviando (${payload.length} bytes) → ${url.slice(0, 58)}…`;
+
+      try {
+        window.location.href = url;
+        setTimeout(() => {
+          if (statusEl.dataset.state === '') {
+            statusEl.dataset.state = 'ok';
+            statusEl.textContent = `Intent lanzado (${payload.length} bytes). Revisa el aviso de la app en el propio terminal.`;
+          }
+        }, 900);
+      } catch (e) {
+        statusEl.dataset.state = 'err';
+        statusEl.textContent = 'Error al lanzar el intent: ' + e.message;
+      }
+    });
+  });
+</script>
