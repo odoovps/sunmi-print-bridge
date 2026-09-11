@@ -143,9 +143,10 @@
     <p class="eyebrow">Granja Martínez · TPV</p>
     <h1>Banco de pruebas — Sunmi Print Bridge</h1>
     <p class="lede">
-      Cada botón dispara <code>window.location.href = "sunmiprint://print?data=…"</code> —
-      la app puente lo recibe, decodifica los bytes ESC/POS y los manda directo a la impresora
-      térmica integrada. Sin diálogo de impresión, sin PDF de por medio.
+      Cada botón dispara <code>window.location.href = "sunmiprint://print?data=…"</code> con una
+      lista de órdenes en JSON (texto, filas, QR, logo…) — la app puente las ejecuta con los
+      métodos nativos del SDK de Sunmi. Sin diálogo de impresión, sin PDF, sin depender de la
+      codepage de la impresora para tildes o el símbolo €.
     </p>
   </header>
 
@@ -220,81 +221,74 @@
 </div>
 
 <script>
-  const ESC = 0x1B, GS = 0x1D;
-
-  function bytesFromText(str){
-    // El firmware ESC/POS de Sunmi espera CP-1252/latin1 para acentos.
-    const out = [];
-    for (const ch of str) {
-      const code = ch.codePointAt(0);
-      out.push(code < 256 ? code : 0x3F); // '?' si no mapea
-    }
-    return out;
-  }
-
-  function buildPayload(kind){
-    let b = [];
-    b.push(ESC, 0x40); // init
-
-    const line = (s, opts = {}) => {
-      if (opts.center) b.push(ESC, 0x61, 1);
-      if (opts.bold) b.push(ESC, 0x45, 1);
-      b.push(...bytesFromText(s), 0x0A);
-      if (opts.bold) b.push(ESC, 0x45, 0);
-      if (opts.center) b.push(ESC, 0x61, 0);
-    };
+  // Protocolo actual: una lista de órdenes de alto nivel en JSON, no bytes
+  // ESC/POS crudos — ver README. La app puente las ejecuta con los métodos
+  // Unicode-nativos del SDK de Sunmi, así que aquí se puede escribir texto
+  // real con tildes y € sin preocuparse de ninguna codepage.
+  function buildOps(kind){
+    const ops = [];
+    const align = (v) => ops.push({ op: 'align', value: v });
+    const bold = (v) => ops.push({ op: 'bold', value: v });
+    const text = (v = '') => ops.push({ op: 'text', value: v });
+    const row = (l, r, b = false) => ops.push({ op: 'row', cols: [l, r], weights: [3, 1], aligns: [0, 2], bold: b });
+    const divider = () => ops.push({ op: 'divider' });
+    const feed = (n) => ops.push({ op: 'feed', value: n });
 
     if (kind === 'basic') {
-      line('GRANJA MARTINEZ', { center: true, bold: true });
-      line('Prueba Sunmi Print Bridge', { center: true });
-      line('');
-      line('1 Huevos Carton L        2,20 EUR');
-      line('');
-      line('');
+      align(1);
+      bold(true); text('GRANJA MARTÍNEZ'); bold(false);
+      text('Prueba Sunmi Print Bridge');
+      text('');
+      align(0);
+      row('1 Huevos Cartón L', '2,20 €');
+      feed(3);
     }
 
     if (kind === 'ticket' || kind === 'cut') {
-      line('GRANJA MARTINEZ', { center: true, bold: true });
-      line('Avda. Valle de Losa, s/n', { center: true });
-      line('Medina de Pomar', { center: true });
-      line('--------------------------------');
-      line('Ruta 1                 11/09/2026');
-      line('--------------------------------');
-      line('1  Huevos Carton XL      2,40 EUR');
-      line('2  Lechuga Batavia       1,60 EUR');
-      line('1  Brocoli               1,10 EUR');
-      line('--------------------------------');
-      line('TOTAL                   5,10 EUR', { bold: true });
-      line('IVA 4% incluido');
-      line('');
-      line('Gracias por su compra', { center: true });
-      line('');
-      line('');
-      line('');
+      align(1);
+      bold(true); text('GRANJA MARTÍNEZ'); bold(false);
+      text('Avda. Valle de Losa, s/n');
+      text('Medina de Pomar');
+      divider();
+      align(0);
+      row('Ruta 1', '11/09/2026');
+      divider();
+      row('1 Huevos Cartón XL', '2,40 €');
+      row('2 Lechuga Batavia', '1,60 €');
+      row('1 Brócoli', '1,10 €');
+      divider();
+      row('TOTAL', '5,10 €', true);
+      text('IVA 4% incluido');
+      text('');
+      align(1);
+      text('Gracias por su compra');
+      feed(3);
       if (kind === 'cut') {
-        b.push(GS, 0x56, 0x01); // corte parcial
+        ops.push({ op: 'cut' });
       }
     }
 
     if (kind === 'drawer') {
-      line('Abriendo cajon...', { center: true });
-      b.push(ESC, 0x70, 0x00, 0x19, 0xFA); // pulso cajon
+      align(1);
+      text('Abriendo cajón...');
+      ops.push({ op: 'drawer' });
     }
 
-    return b;
+    return ops;
   }
 
-  function toBase64Url(bytes){
+  function toBase64Url(ops){
+    const bytes = new TextEncoder().encode(JSON.stringify(ops));
     let bin = '';
     for (const byte of bytes) bin += String.fromCharCode(byte);
     return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_');
   }
 
   const previewText = {
-    basic: 'GRANJA MARTINEZ\nPrueba Sunmi Print Bridge\n\n1 Huevos Carton L      2,20 EUR',
-    ticket: 'Ruta 1              11/09/2026\n--------------------------------\n1 Huevos Carton XL     2,40 EUR\n2 Lechuga Batavia      1,60 EUR\n1 Brocoli              1,10 EUR\n--------------------------------\nTOTAL                  5,10 EUR',
-    cut: 'Ruta 1              11/09/2026\n--------------------------------\n1 Huevos Carton XL     2,40 EUR\n2 Lechuga Batavia      1,60 EUR\n1 Brocoli              1,10 EUR\n--------------------------------\nTOTAL                  5,10 EUR\n\n[ corte de papel ]',
-    drawer: 'Abriendo cajon...\n\n[ pulso ESC p — 25ms / 250ms ]',
+    basic: 'GRANJA MARTÍNEZ\nPrueba Sunmi Print Bridge\n\n1 Huevos Cartón L      2,20 €',
+    ticket: 'Ruta 1              11/09/2026\n--------------------------------\n1 Huevos Cartón XL     2,40 €\n2 Lechuga Batavia      1,60 €\n1 Brócoli              1,10 €\n--------------------------------\nTOTAL                  5,10 €',
+    cut: 'Ruta 1              11/09/2026\n--------------------------------\n1 Huevos Cartón XL     2,40 €\n2 Lechuga Batavia      1,60 €\n1 Brócoli              1,10 €\n--------------------------------\nTOTAL                  5,10 €\n\n[ corte de papel ]',
+    drawer: 'Abriendo cajón...\n\n[ pulso openDrawer() ]',
   };
 
   const statusEl = document.getElementById('status');
@@ -304,22 +298,22 @@
   document.querySelectorAll('.test-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const kind = btn.dataset.test;
-      const payload = buildPayload(kind);
-      const encoded = toBase64Url(payload);
+      const ops = buildOps(kind);
+      const encoded = toBase64Url(ops);
       const url = `sunmiprint://print?data=${encoded}`;
 
       receiptBody.textContent = previewText[kind] || '';
       receiptFoot.textContent = kind === 'cut' ? 'corte solicitado' : (kind === 'drawer' ? 'pulso enviado' : 'sunmi print bridge');
 
       statusEl.dataset.state = '';
-      statusEl.textContent = `Enviando (${payload.length} bytes) → ${url.slice(0, 58)}…`;
+      statusEl.textContent = `Enviando (${ops.length} órdenes) → ${url.slice(0, 58)}…`;
 
       try {
         window.location.href = url;
         setTimeout(() => {
           if (statusEl.dataset.state === '') {
             statusEl.dataset.state = 'ok';
-            statusEl.textContent = `Intent lanzado (${payload.length} bytes). Revisa el aviso de la app en el propio terminal.`;
+            statusEl.textContent = `Intent lanzado (${ops.length} órdenes). Revisa el aviso de la app en el propio terminal.`;
           }
         }, 900);
       } catch (e) {

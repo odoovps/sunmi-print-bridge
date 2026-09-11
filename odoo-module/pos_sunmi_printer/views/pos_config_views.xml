@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="pos_config_view_form_sunmi" model="ir.ui.view">
+        <field name="name">pos.config.view.form.inherit.sunmi</field>
+        <field name="model">pos.config</field>
+        <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
+        <field name="arch" type="xml">
+            <setting id="other_devices" position="after">
+                <setting
+                    id="sunmi_printer"
+                    string="Impresora Sunmi"
+                    help="Imprime directo en la impresora térmica integrada de un terminal Sunmi, sin caja IoT">
+                    <field name="sunmi_printer"/>
+                    <div class="content-group" invisible="not sunmi_printer">
+                        <div class="row">
+                            <div class="col-lg-6 o_light_label">
+                                <label string="Vincular cajón portamonedas" for="iface_cashdrawer"/>
+                            </div>
+                            <div class="col-lg-6">
+                                <field name="iface_cashdrawer"/>
+                            </div>
+                        </div>
+                        <div class="text-muted">
+                            Requiere tener instalado el APK del puente
+                            <a href="https://github.com/odoovps/sunmi-print-bridge" target="_blank">sunmi-print-bridge</a>
+                            en el propio terminal.
+                        </div>
+                    </div>
+                </setting>
+            </setting>
+        </field>
+    </record>
+</odoo>
